@@ -220,9 +220,6 @@ test "format multipart form parameters" {
     var app = try jetzig.testing.app(std.testing.allocator, @import("routes"));
     defer app.deinit();
     
-    // Create a multipart form boundary
-    const boundary = "----WebKitFormBoundaryABC123";
-    
     // Create multipart form content
     const multipart_content = 
         "------WebKitFormBoundaryABC123\r\n" ++
