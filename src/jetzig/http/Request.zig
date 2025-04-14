@@ -420,14 +420,26 @@ fn formatParameterValue(value: *const jetzig.data.Value, writer: anytype) !void 
     }
 }
 
-/// Format parameters for debugging purposes, similar to console.log in JS
-pub fn formatParameters(self: *Request, params_value: *const jetzig.data.Value) ![]const u8 {
+/// Format parameters for debugging purposes and print them directly
+pub fn formatParameters(self: *Request, params_value: *const jetzig.data.Value) !void {
+    var buffer = std.ArrayList(u8).init(self.allocator);
+    defer buffer.deinit();
+
+    const writer = buffer.writer();
+    try formatParameterValue(params_value, writer);
+
+    const formatted = try buffer.toOwnedSlice();
+    defer self.allocator.free(formatted);
+
+    std.debug.print("{s}\n", .{formatted});
+}
+
+/// Format a parameter value to a string for debugging
+pub fn formatParametersToString(self: *Request, params_value: *const jetzig.data.Value) ![]const u8 {
     var buffer = std.ArrayList(u8).init(self.allocator);
     errdefer buffer.deinit();
 
     const writer = buffer.writer();
-
-    // try writer.writeAll(jetzig.colors.blue("Params") ++ " ");
     try formatParameterValue(params_value, writer);
 
     return buffer.toOwnedSlice();
