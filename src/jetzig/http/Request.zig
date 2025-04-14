@@ -389,6 +389,50 @@ pub fn params(self: *Request) !*jetzig.data.Value {
     }
 }
 
+/// Format a parameter value for debugging output
+fn formatParameterValue(value: *const jetzig.data.Value, writer: anytype) !void {
+    switch (value.*) {
+        .string => |s| try writer.print("\"{s}\"", .{s.value}),
+        .int => |i| try writer.print("{d}", .{i.value}),
+        .float => |f| try writer.print("{d}", .{f.value}),
+        .bool => |b| try writer.print("{}", .{b.value}),
+        .null => try writer.writeAll("null"),
+        .array => |a| {
+            try writer.writeAll("[");
+            for (a.items(), 0..) |item, i| {
+                if (i > 0) try writer.writeAll(", ");
+                try formatParameterValue(item, writer);
+            }
+            try writer.writeAll("]");
+        },
+        .object => |o| {
+            try writer.writeAll("{\n");
+            var it = o.iterator();
+            var is_first = true;
+            while (it.next()) |entry| {
+                if (!is_first) try writer.writeAll(",\n");
+                is_first = false;
+                try writer.print("  {s}: ", .{entry.key_ptr.*});
+                try formatParameterValue(entry.value_ptr, writer);
+            }
+            try writer.writeAll("\n}");
+        },
+    }
+}
+
+/// Format parameters for debugging purposes, similar to console.log in JS
+pub fn formatParameters(self: *Request, params_value: *const jetzig.data.Value) ![]const u8 {
+    var buffer = std.ArrayList(u8).init(self.allocator);
+    errdefer buffer.deinit();
+
+    const writer = buffer.writer();
+    
+    try writer.writeAll(jetzig.colors.blue("Params") ++ " ");
+    try formatParameterValue(params_value, writer);
+
+    return buffer.toOwnedSlice();
+}
+
 /// Expect params that match a struct defined by `T`. If any required params are missing (or
 /// cannot be matched to an enum param) then `null` is returned, otherwise a new `T` is returned
 /// with values populated from matched params.
