@@ -24,7 +24,7 @@ test "format parameters" {
     var root = try data.root(.object);
     
     try root.put("string_value", data.string("test string"));
-    try root.put("int_value", data.int(123));
+    try root.put("int_value", data.integer(123));
     try root.put("bool_value", data.boolean(true));
     
     // Create nested structure
@@ -35,7 +35,7 @@ test "format parameters" {
     // Create an array
     var array = try data.array();
     try array.append(data.string("item1"));
-    try array.append(data.int(42));
+    try array.append(data.integer(42));
     try root.put("array_value", array);
     
     // Create a simple mock request
@@ -73,10 +73,11 @@ const MockRequest = struct {
     fn formatParameterValue(value: *const jetzig.data.Value, writer: anytype) !void {
         switch (value.*) {
             .string => |s| try writer.print("\"{s}\"", .{s.value}),
-            .int => |i| try writer.print("{d}", .{i.value}),
+            .integer => |i| try writer.print("{d}", .{i.value}),
             .float => |f| try writer.print("{d}", .{f.value}),
-            .bool => |b| try writer.print("{}", .{b.value}),
+            .boolean => |b| try writer.print("{}", .{b.value}),
             .null => try writer.writeAll("null"),
+            .datetime => |dt| try writer.print("datetime: {}", .{dt.value}),
             .array => |a| {
                 try writer.writeAll("[");
                 for (a.items(), 0..) |item, i| {
@@ -87,13 +88,12 @@ const MockRequest = struct {
             },
             .object => |o| {
                 try writer.writeAll("{\n");
-                var it = o.iterator();
                 var is_first = true;
-                while (it.next()) |entry| {
+                for (o.items()) |entry| {
                     if (!is_first) try writer.writeAll(",\n");
                     is_first = false;
-                    try writer.print("  {s}: ", .{entry.key_ptr.*});
-                    try formatParameterValue(entry.value_ptr, writer);
+                    try writer.print("  {s}: ", .{entry.key});
+                    try formatParameterValue(entry.value, writer);
                 }
                 try writer.writeAll("\n}");
             },
