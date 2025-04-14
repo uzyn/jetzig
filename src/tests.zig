@@ -16,35 +16,35 @@ test {
 
 test "format parameters" {
     var allocator = std.testing.allocator;
-    
+
     // Create test data
     var data = jetzig.data.Data.init(allocator);
     defer data.deinit();
-    
+
     var root = try data.root(.object);
-    
+
     try root.put("string_value", data.string("test string"));
     try root.put("int_value", data.integer(123));
     try root.put("bool_value", data.boolean(true));
-    
+
     // Create nested structure
     var nested = try data.object();
     try nested.put("nested_key", data.string("nested value"));
     try root.put("object_value", nested);
-    
+
     // Create an array
     var array = try data.array();
     try array.append(data.string("item1"));
     try array.append(data.integer(42));
     try root.put("array_value", array);
-    
+
     // Create a simple mock request
     var request = MockRequest{ .allocator = allocator };
-    
+
     // Format parameters
     const formatted = try request.formatParameters(root);
     defer allocator.free(formatted);
-    
+
     // Simple verification - make sure the output contains expected values
     try std.testing.expect(std.mem.indexOf(u8, formatted, "test string") != null);
     try std.testing.expect(std.mem.indexOf(u8, formatted, "123") != null);
@@ -57,19 +57,19 @@ test "format parameters" {
 // Simple mock request for testing that implements only the formatParameters function
 const MockRequest = struct {
     allocator: std.mem.Allocator,
-    
+
     pub fn formatParameters(self: MockRequest, params_value: *const jetzig.data.Value) ![]const u8 {
         var buffer = std.ArrayList(u8).init(self.allocator);
         errdefer buffer.deinit();
 
         const writer = buffer.writer();
-        
+
         try writer.writeAll("Params ");
         try formatParameterValue(params_value, writer);
 
         return buffer.toOwnedSlice();
     }
-    
+
     fn formatParameterValue(value: *const jetzig.data.Value, writer: anytype) !void {
         switch (value.*) {
             .string => |s| try writer.print("\"{s}\"", .{s.value}),
