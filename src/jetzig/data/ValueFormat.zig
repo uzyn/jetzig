@@ -8,9 +8,6 @@ pub fn format(
     options: std.fmt.FormatOptions,
     writer: anytype,
 ) !void {
-    _ = options;
-    _ = fmt;
-
     // Simply reuse the existing formatParameterValue implementation
     switch (value.*) {
         .string => |s| try writer.print("\"{s}\"", .{s.value}),

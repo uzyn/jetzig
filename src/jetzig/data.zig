@@ -15,4 +15,4 @@ pub const Array = zmpl.Data.Array;
 pub const ValueType = zmpl.Data.ValueType;
 
 // Import the Value formatter to make Value work with std.debug.print("{any}")
-pub usingnamespace @import("jetzig/data/ValueFormat.zig");
+pub usingnamespace @import("data/ValueFormat.zig");
