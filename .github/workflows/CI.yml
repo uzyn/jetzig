@@ -28,7 +28,8 @@ jobs:
           submodules: true
 
       - name: Setup Zig
-        uses: uzyn/mlugg-setup-zig@v1
+        # uses: uzyn/mlugg-setup-zig@v1
+        uses: mlugg/setup-zig@v1.2.1
 
       - run: zig version
       - run: zig env
