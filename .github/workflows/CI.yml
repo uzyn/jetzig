@@ -4,7 +4,7 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, min-zig-ver-2 ]
   pull_request:
     branches: [ main ]
   schedule:
@@ -30,7 +30,7 @@ jobs:
       - name: Setup Zig
         uses: mlugg/setup-zig@v1
         with:
-          version: master
+          version: 0.15.0-dev.345+ec2888858
 
       - run: zig version
       - run: zig env
