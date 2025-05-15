@@ -1,7 +1,6 @@
 const std = @import("std");
 const testing = std.testing;
-const jetzig = @import("../../jetzig.zig");
-const data = jetzig.data;
+const data = @import("../data.zig");
 const zmpl = @import("zmpl").zmpl;
 
 // This file contains minimal tests for the model-to-data conversion functions

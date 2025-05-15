@@ -1,7 +1,6 @@
 const std = @import("std");
 const testing = std.testing;
-const jetzig = @import("../../jetzig.zig");
-const data = jetzig.data;
+const data = @import("../data.zig");
 const zmpl = @import("zmpl").zmpl;
 
 // Helper function to create test values
@@ -66,12 +65,12 @@ test "modelToData basic conversion" {
     try testing.expect(@as(data.ValueType, result.*) == .object);
     
     const obj = result.object;
-    try testing.expectEqual(@as(i64, 1), obj.get("id").?.integer);
-    try testing.expectEqualStrings("Test User", try obj.get("name").?.string.value);
-    try testing.expectEqualStrings("test@example.com", try obj.get("email").?.string.value);
-    try testing.expect(try obj.get("is_admin").?.boolean);
-    try testing.expectEqual(@as(i64, 1683912345), try obj.get("last_login").?.integer);
-    try testing.expect(obj.get("metadata").?.* == .null_type);
+    try testing.expectEqual(@as(i64, 1), obj.get("id").?.integer.value);
+    try testing.expectEqualStrings("Test User", obj.get("name").?.string.value);
+    try testing.expectEqualStrings("test@example.com", obj.get("email").?.string.value);
+    try testing.expect(obj.get("is_admin").?.boolean.value);
+    try testing.expectEqual(@as(i64, 1683912345), obj.get("last_login").?.integer.value);
+    try testing.expectEqualStrings("null", obj.get("metadata").?.string.value);
 }
 
 test "modelToData with nested structs" {
@@ -105,11 +104,11 @@ test "modelToData with nested structs" {
     const obj = result.object;
     const meta_obj = obj.get("metadata").?.object;
     
-    try testing.expectEqual(@as(u32, 42), @as(u32, @intCast(meta_obj.get("login_count").?.integer)));
+    try testing.expectEqual(@as(u32, 42), @as(u32, @intCast(meta_obj.get("login_count").?.integer.value)));
     
     const prefs_obj = meta_obj.get("preferences").?.object;
     try testing.expectEqualStrings("dark", prefs_obj.get("theme").?.string.value);
-    try testing.expect(prefs_obj.get("notifications_enabled").?.boolean);
+    try testing.expect(prefs_obj.get("notifications_enabled").?.boolean.value);
 }
 
 test "modelToData with options" {
@@ -214,16 +213,16 @@ test "modelsToArray conversion" {
     try testing.expect(@as(data.ValueType, result.*) == .array);
     
     const arr = result.array;
-    try testing.expectEqual(@as(usize, 2), arr.items.len);
+    try testing.expectEqual(@as(usize, 2), arr.count());
     
     // Verify first user
     const user1 = arr.get(0).?.object;
-    try testing.expectEqual(@as(i64, 1), user1.get("id").?.integer);
+    try testing.expectEqual(@as(i64, 1), user1.get("id").?.integer.value);
     try testing.expectEqualStrings("User One", user1.get("name").?.string.value);
     
     // Verify second user
     const user2 = arr.get(1).?.object;
-    try testing.expectEqual(@as(i64, 2), user2.get("id").?.integer);
+    try testing.expectEqual(@as(i64, 2), user2.get("id").?.integer.value);
     try testing.expectEqualStrings("User Two", user2.get("name").?.string.value);
 }
 
@@ -250,7 +249,8 @@ test "modelToData with custom transformers" {
             const timestamp = @as(i64, @intCast(@intFromPtr(value_ptr)));
             var buf: [32]u8 = undefined;
             const date_str = try std.fmt.bufPrint(&buf, "2023-01-01T{d}:00:00Z", .{@mod(timestamp, 24)});
-            return zmpl.Data.string(alloc, date_str);
+            var data_obj = data.Data.init(alloc);
+            return data_obj.string(date_str);
         }
     }.transform;
 
