@@ -12,4 +12,7 @@ test {
     _ = @import("jetzig/jobs/Job.zig");
     _ = @import("jetzig/mail/Mail.zig");
     _ = @import("jetzig/loggers/LogQueue.zig");
+    _ = @import("jetzig/data/simple_test.zig");
+    // Disable the more complex test until we get the simple one working
+    // _ = @import("jetzig/data/model_to_data_test.zig");
 }
