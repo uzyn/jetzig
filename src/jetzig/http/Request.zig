@@ -208,6 +208,35 @@ pub fn data(self: Request, comptime root: @TypeOf(.enum_literal)) !*jetzig.Data.
     return try self.response_data.root(root);
 }
 
+/// Convert a model to a data.Value that can be used in templates.
+/// Automatically detects whether the input is a single model or an array.
+/// This is a convenient shorthand for accessing jetzig.data.fromModel.
+/// 
+/// ```zig
+/// // Convert a user model to template-friendly data
+/// const user_data = try request.fromModel(user);
+/// var root = try request.data(.object);
+/// try root.put("user", user_data);
+/// ```
+pub fn fromModel(self: Request, model: anytype) !*jetzig.data.Value {
+    return try jetzig.data.fromModel(self.allocator, model);
+}
+
+/// Convert a model to a data.Value with additional options.
+/// This is a convenient shorthand for accessing jetzig.data.fromModelWithOptions.
+/// 
+/// ```zig
+/// // Convert a user model to template-friendly data, excluding certain fields
+/// const user_data = try request.fromModelWithOptions(user, .{
+///     .exclude = &[_][]const u8{"password", "secret_token"},
+/// });
+/// var root = try request.data(.object);
+/// try root.put("user", user_data);
+/// ```
+pub fn fromModelWithOptions(self: Request, model: anytype, options: jetzig.data.ModelToDataOptions) !*jetzig.data.Value {
+    return try jetzig.data.fromModelWithOptions(self.allocator, model, options);
+}
+
 /// Render a response. This function can only be called once per request (repeat calls will
 /// trigger an error).
 pub fn render(self: *Request, status_code: jetzig.http.status_codes.StatusCode) jetzig.views.View {
