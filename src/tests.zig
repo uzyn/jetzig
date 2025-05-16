@@ -15,4 +15,5 @@ test {
     _ = @import("jetzig/loggers/LogQueue.zig");
     _ = @import("jetzig/data/simple_test.zig");
     _ = @import("jetzig/data/model_to_data_test.zig");
+    _ = @import("jetzig/data/automatic_conversion_test.zig");
 }
