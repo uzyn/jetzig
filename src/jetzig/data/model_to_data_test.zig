@@ -45,7 +45,7 @@ const Post = struct {
     created_at: i64,
 };
 
-test "modelToData basic conversion" {
+test "fromModel basic conversion" {
     // Use an arena allocator to avoid memory management issues
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -62,7 +62,7 @@ test "modelToData basic conversion" {
     };
 
     // Use the new null_handling options to handle null values as strings
-    const result = try data.modelToDataWithOptions(allocator, user, .{
+    const result = try data.fromModelWithOptions(allocator, user, .{
         .null_handling = .null_string,
     });
 
@@ -78,7 +78,7 @@ test "modelToData basic conversion" {
     try testing.expectEqualStrings("null", obj.get("metadata").?.string.value);
 }
 
-test "modelToData with nested structs" {
+test "fromModel with nested structs" {
     // Use an arena allocator to avoid memory management issues
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -104,7 +104,7 @@ test "modelToData with nested structs" {
     };
 
     // Use our full implementation with null handling
-    const result = try data.modelToDataWithOptions(allocator, user, .{
+    const result = try data.fromModelWithOptions(allocator, user, .{
         .null_handling = .null_string,
     });
 
@@ -121,7 +121,7 @@ test "modelToData with nested structs" {
     try testing.expect(prefs_obj.get("notifications_enabled").?.boolean.value);
 }
 
-test "modelToData with options" {
+test "fromModel with options" {
     // Use an arena allocator to avoid memory management issues
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -138,7 +138,7 @@ test "modelToData with options" {
     
     // Test with field exclusion
     {
-        const result = try data.modelToDataWithOptions(
+        const result = try data.fromModelWithOptions(
             allocator, 
             user, 
             .{ 
@@ -157,7 +157,7 @@ test "modelToData with options" {
     
     // Test with field inclusion
     {
-        const result = try data.modelToDataWithOptions(
+        const result = try data.fromModelWithOptions(
             allocator, 
             user, 
             .{ 
@@ -183,7 +183,7 @@ test "modelToData with options" {
         try rename_map.put("email", "contact_email");
         try rename_map.put("is_admin", "admin_status");
         
-        const result = try data.modelToDataWithOptions(
+        const result = try data.fromModelWithOptions(
             allocator, 
             user, 
             .{ 
@@ -202,7 +202,7 @@ test "modelToData with options" {
     }
 }
 
-test "modelsToArray conversion" {
+test "fromModel with arrays conversion" {
     // Use an arena allocator to avoid memory management issues
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -228,7 +228,7 @@ test "modelsToArray conversion" {
     };
 
     // Use our implementation with null handling
-    const result = try data.modelsToArray(allocator, &users, .{
+    const result = try data.fromModelWithOptions(allocator, &users, .{
         .null_handling = .null_string,
     });
     
@@ -248,7 +248,7 @@ test "modelsToArray conversion" {
     try testing.expectEqualStrings("User Two", user2.get("name").?.string.value);
 }
 
-test "modelToData with custom transformers" {
+test "fromModel with custom transformers" {
     // Use an arena allocator to avoid memory management issues
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -263,8 +263,8 @@ test "modelToData with custom transformers" {
         .created_at = 1683912345,
     };
 
-    // Setup transformer map
-    var transformers = data.model_to_data.TransformerMap.init(allocator);
+    // Setup transformer map - need to use the internal model_to_data.TransformerMap
+    var transformers = @import("model_to_data.zig").TransformerMap.init(allocator);
     
     // Add a custom date transformer
     const dateTransformer = struct {
@@ -283,7 +283,7 @@ test "modelToData with custom transformers" {
     try transformers.put("created_at", dateTransformer);
     
     // Now try with our implementation of transformers
-    const result = try data.modelToDataWithOptions(
+    const result = try data.fromModelWithOptions(
         allocator,
         post,
         .{ 

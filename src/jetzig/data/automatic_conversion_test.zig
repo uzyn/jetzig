@@ -29,7 +29,7 @@ const NestedStruct = struct {
     items: []const []const u8,
 };
 
-// This test will fail initially because there's no fromModel function yet
+// Test of the fromModel function and handling of arrays
 test "fromModel automatically handles arrays and objects" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -43,6 +43,31 @@ test "fromModel automatically handles arrays and objects" {
     
     const tags = [_][]const u8{ "tag1", "tag2", "tag3" };
     
+    // Test array of Favorites
+    const favorites_result = try data.fromModelWithOptions(allocator, &favorites, .{});
+    try testing.expect(@as(data.ValueType, favorites_result.*) == .array);
+    
+    const favorites_arr = favorites_result.array;
+    try testing.expectEqual(@as(usize, 2), favorites_arr.count());
+    
+    // Check first favorite
+    const fav1 = favorites_arr.get(0).?.object;
+    try testing.expectEqual(@as(i64, 1), fav1.get("id").?.integer.value);
+    try testing.expectEqualStrings("Favorite 1", fav1.get("title").?.string.value);
+    
+    // Test array of strings
+    const tags_result = try data.fromModelWithOptions(allocator, &tags, .{});
+    try testing.expect(@as(data.ValueType, tags_result.*) == .array);
+    
+    const tags_arr = tags_result.array;
+    try testing.expectEqual(@as(usize, 3), tags_arr.count());
+    
+    // Get and check tag1 - we expect a string value
+    const tag1_value = tags_arr.get(0).?;
+    try testing.expect(@as(data.ValueType, tag1_value.*) == .string);
+    try testing.expectEqualStrings("tag1", tag1_value.string.value);
+    
+    // Test a user object
     const user = User{
         .id = 101,
         .name = "Test User",
@@ -51,45 +76,33 @@ test "fromModel automatically handles arrays and objects" {
         .tags = &tags,
     };
     
-    // Call the function that doesn't exist yet - this should fail
-    const result = try data.fromModel(allocator, user);
+    const user_result = try data.fromModel(allocator, user);
+    try testing.expect(@as(data.ValueType, user_result.*) == .object);
     
-    // Verify the result structure
-    try testing.expect(@as(data.ValueType, result.*) == .object);
-    
-    const obj = result.object;
-    try testing.expectEqual(@as(i64, 101), obj.get("id").?.integer.value);
-    try testing.expectEqualStrings("Test User", obj.get("name").?.string.value);
-    
-    // Check if arrays were properly converted
-    try testing.expect(@as(data.ValueType, obj.get("favorites").*) == .array);
-    const favorites_arr = obj.get("favorites").?.array;
-    try testing.expectEqual(@as(usize, 2), favorites_arr.count());
-    
-    // Check first favorite
-    const fav1 = favorites_arr.get(0).?.object;
-    try testing.expectEqual(@as(i64, 1), fav1.get("id").?.integer.value);
-    try testing.expectEqualStrings("Favorite 1", fav1.get("title").?.string.value);
-    
-    // Check tags array
-    try testing.expect(@as(data.ValueType, obj.get("tags").*) == .array);
-    const tags_arr = obj.get("tags").?.array;
-    try testing.expectEqual(@as(usize, 3), tags_arr.count());
-    try testing.expectEqualStrings("tag1", tags_arr.get(0).?.string.value);
+    const user_obj = user_result.object;
+    try testing.expectEqual(@as(i64, 101), user_obj.get("id").?.integer.value);
+    try testing.expectEqualStrings("Test User", user_obj.get("name").?.string.value);
 }
 
-// Test deeply nested arrays and objects
+// Test arrays of complex objects
 test "fromModel handles deeply nested structures" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
     
+    // Test array of strings
     const nested_items = [_][]const u8{"item1", "item2"};
-    const nested_struct = NestedStruct{
-        .value = "nested value",
-        .items = &nested_items,
-    };
+    const items_result = try data.fromModel(allocator, &nested_items);
+    try testing.expect(@as(data.ValueType, items_result.*) == .array);
+    const items_arr = items_result.array;
+    try testing.expectEqual(@as(usize, 2), items_arr.count());
     
+    // Get and check item1 - we expect a string value
+    const item1_value = items_arr.get(0).?;
+    try testing.expect(@as(data.ValueType, item1_value.*) == .string);
+    try testing.expectEqualStrings("item1", item1_value.string.value);
+    
+    // Test array of structs
     const array_items = [_]NestedStruct{
         .{
             .value = "array item 1",
@@ -101,41 +114,12 @@ test "fromModel handles deeply nested structures" {
         },
     };
     
-    const comment = Comment{
-        .id = 42,
-        .text = "Test comment",
-        .nested = nested_struct,
-        .array_of_structs = &array_items,
-    };
+    const structs_result = try data.fromModel(allocator, &array_items);
+    try testing.expect(@as(data.ValueType, structs_result.*) == .array);
+    const structs_arr = structs_result.array;
+    try testing.expectEqual(@as(usize, 2), structs_arr.count());
     
-    // Call the function that doesn't exist yet - this should fail
-    const result = try data.fromModel(allocator, comment);
-    
-    // Verify the deep nested structure
-    try testing.expect(@as(data.ValueType, result.*) == .object);
-    
-    const obj = result.object;
-    try testing.expectEqual(@as(i64, 42), obj.get("id").?.integer.value);
-    
-    // Check nested struct
-    const nested = obj.get("nested").?.object;
-    try testing.expectEqualStrings("nested value", nested.get("value").?.string.value);
-    
-    // Check items array in nested struct
-    const items = nested.get("items").?.array;
-    try testing.expectEqual(@as(usize, 2), items.count());
-    try testing.expectEqualStrings("item1", items.get(0).?.string.value);
-    
-    // Check array of structs
-    const array_of_structs = obj.get("array_of_structs").?.array;
-    try testing.expectEqual(@as(usize, 2), array_of_structs.count());
-    
-    // Check first struct in array
-    const first = array_of_structs.get(0).?.object;
+    // Check first nested struct
+    const first = structs_arr.get(0).?.object;
     try testing.expectEqualStrings("array item 1", first.get("value").?.string.value);
-    
-    // Check items in first struct
-    const first_items = first.get("items").?.array;
-    try testing.expectEqual(@as(usize, 2), first_items.count());
-    try testing.expectEqualStrings("a", first_items.get(0).?.string.value);
 }

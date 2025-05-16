@@ -14,8 +14,8 @@ const SimpleModel = struct {
     optional_field: ?[]const u8 = null,
 };
 
-// Test our modelToData stub function returns an object
-test "modelToData stub function" {
+// Test our fromModel function returns an object
+test "fromModel function" {
     // Use an arena for all allocations in this test
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
@@ -26,16 +26,16 @@ test "modelToData stub function" {
         .name = "Test Model",
     };
     
-    // Call the stub implementation
-    const result = try data.modelToData(allocator, model);
+    // Call the implementation
+    const result = try data.fromModel(allocator, model);
     // No need to call deinit() since the arena will clean up
     
-    // Our placeholder implementation should return an object
+    // Should return an object
     try testing.expect(@as(data.ValueType, result.*) == .object);
 }
 
-// Test our modelToDataWithOptions function
-test "modelToDataWithOptions stub function" {
+// Test our fromModelWithOptions function
+test "fromModelWithOptions function" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
@@ -45,15 +45,15 @@ test "modelToDataWithOptions stub function" {
         .name = "Test Model",
     };
     
-    // Call the stub implementation with empty options
-    const result = try data.modelToDataWithOptions(allocator, model, .{});
+    // Call the implementation with empty options
+    const result = try data.fromModelWithOptions(allocator, model, .{});
     
     // Verify it returns an object
     try testing.expect(@as(data.ValueType, result.*) == .object);
 }
 
 // Test different null handling options
-test "modelToDataWithOptions null handling" {
+test "fromModelWithOptions null handling" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
@@ -66,7 +66,7 @@ test "modelToDataWithOptions null handling" {
     
     // Test with skip null (default)
     {
-        const result = try data.modelToDataWithOptions(allocator, model, .{});
+        const result = try data.fromModelWithOptions(allocator, model, .{});
         try testing.expect(@as(data.ValueType, result.*) == .object);
         const obj = result.object;
         try testing.expect(obj.get("optional_field") == null);
@@ -74,7 +74,7 @@ test "modelToDataWithOptions null handling" {
     
     // Test with empty string for nulls
     {
-        const result = try data.modelToDataWithOptions(allocator, model, .{
+        const result = try data.fromModelWithOptions(allocator, model, .{
             .null_handling = .empty_or_zero,
         });
         try testing.expect(@as(data.ValueType, result.*) == .object);
@@ -84,7 +84,7 @@ test "modelToDataWithOptions null handling" {
     
     // Test with "null" string for nulls
     {
-        const result = try data.modelToDataWithOptions(allocator, model, .{
+        const result = try data.fromModelWithOptions(allocator, model, .{
             .null_handling = .null_string,
         });
         try testing.expect(@as(data.ValueType, result.*) == .object);
@@ -94,7 +94,7 @@ test "modelToDataWithOptions null handling" {
     
     // Test with custom value for nulls
     {
-        const result = try data.modelToDataWithOptions(allocator, model, .{
+        const result = try data.fromModelWithOptions(allocator, model, .{
             .null_handling = .custom,
             .custom_null_value = "N/A",
         });
@@ -104,8 +104,8 @@ test "modelToDataWithOptions null handling" {
     }
 }
 
-// Test our modelsToArray function
-test "modelsToArray stub function" {
+// Test fromModel with arrays
+test "fromModel with arrays" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
@@ -115,8 +115,8 @@ test "modelsToArray stub function" {
         .{ .id = 2, .name = "Two" },
     };
     
-    // Call the stub implementation
-    const result = try data.modelsToArray(allocator, &models, .{});
+    // Call the implementation with an array
+    const result = try data.fromModel(allocator, &models);
     
     // Verify it returns an array
     try testing.expect(@as(data.ValueType, result.*) == .array);

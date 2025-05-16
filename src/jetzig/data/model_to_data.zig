@@ -60,6 +60,7 @@ fn shouldProcessField(comptime field_name: []const u8, options: ModelToDataOptio
     return true; // No inclusion/exclusion rules apply
 }
 
+
 /// Handle a null value based on the options and expected type
 fn handleNullValue(
     allocator: std.mem.Allocator, 
@@ -138,6 +139,7 @@ pub fn modelToDataWithOptions(
         if (shouldProcessField(field.name, options)) {
             const field_value = @field(model, field.name);
             const field_type = @TypeOf(field_value);
+            const field_type_info = @typeInfo(field_type);
             
             // Get final field name after possible renaming
             const field_name = if (options.rename_map) |rename_map| 
@@ -155,61 +157,113 @@ pub fn modelToDataWithOptions(
             }
             
             if (!applied_transformer) {
-                const field_type_info = @typeInfo(field_type);
+                // Handle special cases
                 
-                // Process field based on its type
-                switch (field_type_info) {
-                    .@"bool" => try obj.put(field_name, data_obj.boolean(field_value)),
-                    .@"int", .@"comptime_int" => 
-                        try obj.put(field_name, data_obj.integer(@as(i64, @intCast(field_value)))),
-                    .@"float", .@"comptime_float" => 
-                        try obj.put(field_name, data_obj.float(@as(f64, @floatCast(field_value)))),
-                    .@"pointer" => |ptr_info| {
-                        if (ptr_info.size == .slice and ptr_info.child == u8) {
-                            try obj.put(field_name, data_obj.string(field_value));
-                        } else {
-                            var buf: [512]u8 = undefined;
-                            const str = try std.fmt.bufPrint(&buf, "{any}", .{field_value});
-                            try obj.put(field_name, data_obj.string(str));
-                        }
-                    },
-                    .@"optional" => {
-                        if (field_value) |val| {
-                            const val_type = @TypeOf(val);
-                            const inner_type_info = @typeInfo(val_type);
+                // Special handling for array pointers - convert to array format
+                if (field_type_info == .@"pointer") {
+                    const ptr_info = field_type_info.@"pointer";
+                    
+                    if (ptr_info.size == .slice and ptr_info.child == u8) {
+                        // String case - handle normally
+                        try obj.put(field_name, data_obj.string(field_value));
+                    } else {
+                        const child_type = ptr_info.child;
+                        const child_info = @typeInfo(child_type);
+                        
+                        if (child_info == .@"array") {
+                            // It's an array pointer - create an array
+                            const array = try zmpl.Data.createArray(allocator);
                             
-                            if (val_type == bool) {
-                                try obj.put(field_name, data_obj.boolean(val));
-                            } else if (val_type == i32 or val_type == i64 or val_type == u32 or 
-                                    val_type == u64 or val_type == comptime_int) {
-                                try obj.put(field_name, data_obj.integer(@as(i64, @intCast(val))));
-                            } else if (val_type == f32 or val_type == f64) {
-                                try obj.put(field_name, data_obj.float(@as(f64, @floatCast(val))));
-                            } else if (val_type == []const u8) {
-                                try obj.put(field_name, data_obj.string(val));
-                            } else if (inner_type_info == .@"struct") {
-                                const nested = try modelToDataWithOptions(allocator, val, options);
-                                try obj.put(field_name, nested);
+                            // Get element type
+                            const element_type = child_info.@"array".child;
+                            const element_type_info = @typeInfo(element_type);
+                            
+                            if (element_type_info == .@"struct") {
+                                // Array of structs - convert each struct
+                                for (field_value) |item| {
+                                    const item_obj = try modelToDataWithOptions(allocator, item, options);
+                                    try array.append(item_obj);
+                                }
                             } else {
-                                var buf: [512]u8 = undefined;
-                                const str = try std.fmt.bufPrint(&buf, "{any}", .{val});
-                                try obj.put(field_name, data_obj.string(str));
+                                // Array of primitives - convert each item
+                                for (field_value) |item| {
+                                    const ItemType = @TypeOf(item);
+                                    
+                                    if (ItemType == []const u8) {
+                                        try array.append(data_obj.string(item));
+                                    } else if (ItemType == bool) {
+                                        try array.append(data_obj.boolean(item));
+                                    } else if (ItemType == i64 or ItemType == i32 or 
+                                              ItemType == u64 or ItemType == u32 or
+                                              ItemType == comptime_int) {
+                                        try array.append(data_obj.integer(@as(i64, @intCast(item))));
+                                    } else if (ItemType == f64 or ItemType == f32 or
+                                              ItemType == comptime_float) {
+                                        try array.append(data_obj.float(@as(f64, @floatCast(item))));
+                                    } else {
+                                        // For other types, convert to string
+                                        var buf: [512]u8 = undefined;
+                                        const str = try std.fmt.bufPrint(&buf, "{any}", .{item});
+                                        try array.append(data_obj.string(str));
+                                    }
+                                }
                             }
-                        } else {
-                            if (handleNullValue(allocator, field_type_info, options)) |value| {
-                                try obj.put(field_name, value);
-                            }
+                            
+                            try obj.put(field_name, array);
+                            continue;
                         }
-                    },
-                    .@"struct" => {
-                        const nested = try modelToDataWithOptions(allocator, field_value, options);
-                        try obj.put(field_name, nested);
-                    },
-                    else => {
+                        
+                        // Default - convert to string
                         var buf: [512]u8 = undefined;
                         const str = try std.fmt.bufPrint(&buf, "{any}", .{field_value});
                         try obj.put(field_name, data_obj.string(str));
-                    },
+                    }
+                } else {
+                    // Handle other types normally
+                    switch (field_type_info) {
+                        .@"bool" => try obj.put(field_name, data_obj.boolean(field_value)),
+                        .@"int", .@"comptime_int" => 
+                            try obj.put(field_name, data_obj.integer(@as(i64, @intCast(field_value)))),
+                        .@"float", .@"comptime_float" => 
+                            try obj.put(field_name, data_obj.float(@as(f64, @floatCast(field_value)))),
+                        .@"optional" => {
+                            if (field_value) |val| {
+                                const val_type = @TypeOf(val);
+                                const inner_type_info = @typeInfo(val_type);
+                                
+                                if (val_type == bool) {
+                                    try obj.put(field_name, data_obj.boolean(val));
+                                } else if (val_type == i32 or val_type == i64 or val_type == u32 or 
+                                        val_type == u64 or val_type == comptime_int) {
+                                    try obj.put(field_name, data_obj.integer(@as(i64, @intCast(val))));
+                                } else if (val_type == f32 or val_type == f64) {
+                                    try obj.put(field_name, data_obj.float(@as(f64, @floatCast(val))));
+                                } else if (val_type == []const u8) {
+                                    try obj.put(field_name, data_obj.string(val));
+                                } else if (inner_type_info == .@"struct") {
+                                    const nested = try modelToDataWithOptions(allocator, val, options);
+                                    try obj.put(field_name, nested);
+                                } else {
+                                    var buf: [512]u8 = undefined;
+                                    const str = try std.fmt.bufPrint(&buf, "{any}", .{val});
+                                    try obj.put(field_name, data_obj.string(str));
+                                }
+                            } else {
+                                if (handleNullValue(allocator, field_type_info, options)) |value| {
+                                    try obj.put(field_name, value);
+                                }
+                            }
+                        },
+                        .@"struct" => {
+                            const nested = try modelToDataWithOptions(allocator, field_value, options);
+                            try obj.put(field_name, nested);
+                        },
+                        else => {
+                            var buf: [512]u8 = undefined;
+                            const str = try std.fmt.bufPrint(&buf, "{any}", .{field_value});
+                            try obj.put(field_name, data_obj.string(str));
+                        },
+                    }
                 }
             }
         }
@@ -218,19 +272,109 @@ pub fn modelToDataWithOptions(
     return obj;
 }
 
-/// Convert an array of model structs to a data.Array
+/// Convert an array of model structs or primitives to a data.Array
 pub fn modelsToArray(
     allocator: std.mem.Allocator,
     models: anytype,
     options: ModelToDataOptions,
 ) !*data.Value {
     const array = try zmpl.Data.createArray(allocator);
+    var data_obj = data.Data.init(allocator);
     
-    // Process each model
-    for (models) |model| {
-        const model_obj = try modelToDataWithOptions(allocator, model, options);
-        try array.append(model_obj);
+    const ModelType = @TypeOf(models);
+    const model_info = @typeInfo(ModelType);
+    
+    // Ensure this is a pointer to an array
+    if (model_info != .@"pointer") return array;
+    
+    const child_type = model_info.@"pointer".child;
+    const child_info = @typeInfo(child_type);
+    
+    if (child_info != .@"array") return array;
+    
+    // Get element type
+    const element_type = child_info.@"array".child;
+    const element_type_info = @typeInfo(element_type);
+    
+    // Different handling based on element type
+    if (element_type_info == .@"struct") {
+        // Process each model struct
+        for (models) |model| {
+            const model_obj = try modelToDataWithOptions(allocator, model, options);
+            try array.append(model_obj);
+        }
+    } else if (element_type == []const u8) {
+        // Special handling for string arrays
+        for (models) |item| {
+            try array.append(data_obj.string(item));
+        }
+    } else {
+        // Handle other primitive types
+        for (models) |item| {
+            const ItemType = @TypeOf(item);
+            
+            if (ItemType == bool) {
+                try array.append(data_obj.boolean(item));
+            } else if (ItemType == i64 or ItemType == i32 or 
+                      ItemType == u64 or ItemType == u32 or
+                      ItemType == comptime_int) {
+                try array.append(data_obj.integer(@as(i64, @intCast(item))));
+            } else if (ItemType == f64 or ItemType == f32 or
+                      ItemType == comptime_float) {
+                try array.append(data_obj.float(@as(f64, @floatCast(item))));
+            } else {
+                // For other types, convert to string
+                var buf: [512]u8 = undefined;
+                const str = try std.fmt.bufPrint(&buf, "{any}", .{item});
+                try array.append(data_obj.string(str));
+            }
+        }
     }
     
     return array;
+}
+
+/// Automatically convert a model or array of models to a data.Value with options
+/// This function automatically detects whether to use modelToData or modelsToArray
+/// based on the type of the input model:
+///
+/// - For regular struct objects, it converts the struct to a data.Object
+/// - For arrays of primitives (strings, booleans, numbers), it converts them to a data.Array of primitive values
+/// - For arrays of structs, it converts them to a data.Array of data.Objects
+///
+/// This allows for seamless handling of nested data structures without having
+/// to explicitly choose between modelToData and modelsToArray.
+///
+/// Note: This is exported as the public API function fromModelWithOptions()
+pub fn fromModel(
+    allocator: std.mem.Allocator,
+    model: anytype,
+    options: ModelToDataOptions,
+) !*data.Value {
+    const ModelType = @TypeOf(model);
+    const model_info = @typeInfo(ModelType);
+    
+    // Check if this is a pointer to an array
+    if (model_info == .@"pointer") {
+        const child_type = model_info.@"pointer".child;
+        const child_info = @typeInfo(child_type);
+        
+        if (child_info == .@"array") {
+            // It's an array, use modelsToArray
+            return modelsToArray(allocator, model, options);
+        }
+    }
+    
+    // It's not an array, use modelToDataWithOptions
+    return modelToDataWithOptions(allocator, model, options);
+}
+
+/// Shorthand for fromModel with default options
+/// Calls fromModel with empty options (default behavior)
+/// Note: This is exported as the primary public API function fromModel()
+pub fn fromModelWithDefaults(
+    allocator: std.mem.Allocator,
+    model: anytype,
+) !*data.Value {
+    return fromModel(allocator, model, .{});
 }
