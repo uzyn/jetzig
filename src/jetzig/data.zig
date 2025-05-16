@@ -13,3 +13,11 @@ pub const String = zmpl.Data.String;
 pub const Object = zmpl.Data.Object;
 pub const Array = zmpl.Data.Array;
 pub const ValueType = zmpl.Data.ValueType;
+
+// Model to Data conversion utilities
+const model_to_data = @import("data/model_to_data.zig");
+
+// Public API - data conversion
+pub const ModelToDataOptions = model_to_data.ModelToDataOptions;
+pub const fromModel = model_to_data.fromModelWithDefaults;
+pub const fromModelWithOptions = model_to_data.fromModel;
