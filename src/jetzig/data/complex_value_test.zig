@@ -140,24 +140,24 @@ test "zmplValue with array of mixed types" {
     
     // Verify it's an array
     try testing.expect(@as(data.ValueType, result.*) == .array);
-    try testing.expectEqual(@as(usize, 5), result.array.items.len);
+    try testing.expectEqual(@as(usize, 5), result.array.array.items.len);
     
     // Check array elements
-    try testing.expectEqualStrings("string value", result.array.items[0].string.value);
-    try testing.expectEqual(@as(i64, 42), result.array.items[1].integer.value);
-    try testing.expect(result.array.items[2].boolean.value);
+    try testing.expectEqualStrings("string value", result.array.array.items[0].string.value);
+    try testing.expectEqual(@as(i64, 42), result.array.array.items[1].integer.value);
+    try testing.expect(result.array.array.items[2].boolean.value);
     
     // Check nested object
-    const nested_obj = result.array.items[3];
+    const nested_obj = result.array.array.items[3];
     try testing.expect(@as(data.ValueType, nested_obj.*) == .object);
     try testing.expectEqualStrings("value", nested_obj.object.get("key").?.string.value);
     
     // Check nested array
-    const nested_arr = result.array.items[4];
+    const nested_arr = result.array.array.items[4];
     try testing.expect(@as(data.ValueType, nested_arr.*) == .array);
-    try testing.expectEqual(@as(usize, 2), nested_arr.array.items.len);
-    try testing.expectEqual(@as(i64, 1), nested_arr.array.items[0].integer.value);
-    try testing.expectEqual(@as(i64, 2), nested_arr.array.items[1].integer.value);
+    try testing.expectEqual(@as(usize, 2), nested_arr.array.array.items.len);
+    try testing.expectEqual(@as(i64, 1), nested_arr.array.array.items[0].integer.value);
+    try testing.expectEqual(@as(i64, 2), nested_arr.array.array.items[1].integer.value);
 }
 
 // Test integration with request.data().set()
@@ -201,12 +201,12 @@ test "direct object setting with complex data" {
     // Verify the favorites array
     const favorites = user_obj.object.get("favorites").?;
     try testing.expect(@as(data.ValueType, favorites.*) == .array);
-    try testing.expectEqual(@as(usize, 1), favorites.array.items.len);
+    try testing.expectEqual(@as(usize, 1), favorites.array.array.items.len);
     
     // Verify the tags array
     const tags = user_obj.object.get("tags").?;
     try testing.expect(@as(data.ValueType, tags.*) == .array);
-    try testing.expectEqual(@as(usize, 2), tags.array.items.len);
+    try testing.expectEqual(@as(usize, 2), tags.array.array.items.len);
 }
 
 // Test nested arrays
@@ -237,17 +237,17 @@ test "zmplValue with nested arrays" {
     
     const rows = result.object.get("rows").?;
     try testing.expect(@as(data.ValueType, rows.*) == .array);
-    try testing.expectEqual(@as(usize, 3), rows.array.items.len);
+    try testing.expectEqual(@as(usize, 3), rows.array.array.items.len);
     
     // Check each row
     for (0..3) |i| {
-        const row = rows.array.items[i];
+        const row = rows.array.array.items[i];
         try testing.expect(@as(data.ValueType, row.*) == .array);
-        try testing.expectEqual(@as(usize, 3), row.array.items.len);
+        try testing.expectEqual(@as(usize, 3), row.array.array.items.len);
         
         for (0..3) |j| {
             const expected = @as(i64, @intCast(i * 3 + j + 1));
-            try testing.expectEqual(expected, row.array.items[j].integer.value);
+            try testing.expectEqual(expected, row.array.array.items[j].integer.value);
         }
     }
 }
@@ -303,31 +303,31 @@ test "zmplValue with structs containing arrays of structs" {
     
     const posts = result.object.get("posts").?;
     try testing.expect(@as(data.ValueType, posts.*) == .array);
-    try testing.expectEqual(@as(usize, 2), posts.array.items.len);
+    try testing.expectEqual(@as(usize, 2), posts.array.array.items.len);
     
     // Check first post
-    const post1 = posts.array.items[0];
+    const post1 = posts.array.array.items[0];
     try testing.expect(@as(data.ValueType, post1.*) == .object);
     try testing.expectEqual(@as(i64, 1), post1.object.get("id").?.integer.value);
     try testing.expectEqualStrings("First Post", post1.object.get("title").?.string.value);
     
     const comments1 = post1.object.get("comments").?;
     try testing.expect(@as(data.ValueType, comments1.*) == .array);
-    try testing.expectEqual(@as(usize, 2), comments1.array.items.len);
+    try testing.expectEqual(@as(usize, 2), comments1.array.array.items.len);
     
     // Check first comment of first post
-    const comment1 = comments1.array.items[0];
+    const comment1 = comments1.array.array.items[0];
     try testing.expect(@as(data.ValueType, comment1.*) == .object);
     try testing.expectEqual(@as(i64, 101), comment1.object.get("id").?.integer.value);
     try testing.expectEqualStrings("Great post!", comment1.object.get("text").?.string.value);
     
     // Check second post
-    const post2 = posts.array.items[1];
+    const post2 = posts.array.array.items[1];
     try testing.expect(@as(data.ValueType, post2.*) == .object);
     try testing.expectEqual(@as(i64, 2), post2.object.get("id").?.integer.value);
     try testing.expectEqualStrings("Second Post", post2.object.get("title").?.string.value);
     
     const comments2 = post2.object.get("comments").?;
     try testing.expect(@as(data.ValueType, comments2.*) == .array);
-    try testing.expectEqual(@as(usize, 1), comments2.array.items.len);
+    try testing.expectEqual(@as(usize, 1), comments2.array.array.items.len);
 }
