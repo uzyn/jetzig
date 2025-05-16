@@ -2,7 +2,6 @@ const std = @import("std");
 const testing = std.testing;
 const jetzig = @import("../../jetzig.zig");
 const data = jetzig.data;
-const zmpl = @import("zmpl").zmpl;
 
 // Test structures for complex nested data
 const Favorite = struct {
@@ -63,15 +62,23 @@ test "zmplValue with complex nested structure" {
     };
     
     // Convert the complex structure using zmplValue
-    const result = try data.Data.zmplValue(user, allocator);
+    const result = try data.zmplValue(user, allocator);
     
     // Verify it's an object
     try testing.expect(@as(data.ValueType, result.*) == .object);
     
     // Check top-level fields
-    try testing.expectEqual(@as(i64, 42), result.object.get("id").?.integer.value);
-    try testing.expectEqualStrings("John Doe", result.object.get("name").?.string.value);
-    try testing.expectEqualStrings("john@example.com", result.object.get("email").?.string.value);
+    const id_val = result.object.get("id").?;
+    try testing.expect(@as(data.ValueType, id_val.*) == .integer);
+    try testing.expectEqual(@as(i64, 42), id_val.integer.value);
+    
+    const name_val = result.object.get("name").?;
+    try testing.expect(@as(data.ValueType, name_val.*) == .string);
+    try testing.expectEqualStrings("John Doe", name_val.string.value);
+    
+    const email_val = result.object.get("email").?;
+    try testing.expect(@as(data.ValueType, email_val.*) == .string);
+    try testing.expectEqualStrings("john@example.com", email_val.string.value);
     
     // Check favorites array
     const favorites = result.object.get("favorites").?;
@@ -120,31 +127,36 @@ test "zmplValue with array of mixed types" {
     
     // Create an array of different types using an ArrayList
     var mixed_array = std.ArrayList(*data.Value).init(allocator);
-    try mixed_array.append(try data.Data.zmplValue("string value", allocator));
-    try mixed_array.append(try data.Data.zmplValue(42, allocator));
-    try mixed_array.append(try data.Data.zmplValue(true, allocator));
+    try mixed_array.append(try data.zmplValue("string value", allocator));
+    try mixed_array.append(try data.zmplValue(42, allocator));
+    try mixed_array.append(try data.zmplValue(true, allocator));
     
     // Create a nested object
-    var obj = try zmpl.Data.createObject(allocator);
+    var obj = try data.Data.createObject(allocator);
     try obj.put("key", "value");
     try mixed_array.append(obj);
     
     // Create a nested array
-    var arr = try zmpl.Data.createArray(allocator);
+    var arr = try data.Data.createArray(allocator);
     try arr.append(1);
     try arr.append(2);
     try mixed_array.append(arr);
     
     // Convert the mixed array
-    const result = try data.Data.zmplValue(mixed_array.items, allocator);
+    const result = try data.zmplValue(mixed_array.items, allocator);
     
     // Verify it's an array
     try testing.expect(@as(data.ValueType, result.*) == .array);
     try testing.expectEqual(@as(usize, 5), result.array.array.items.len);
     
-    // Check array elements
+    // Check array elements - we need to verify type first
+    try testing.expect(@as(data.ValueType, result.array.array.items[0].*) == .string);
     try testing.expectEqualStrings("string value", result.array.array.items[0].string.value);
+    
+    try testing.expect(@as(data.ValueType, result.array.array.items[1].*) == .integer);
     try testing.expectEqual(@as(i64, 42), result.array.array.items[1].integer.value);
+    
+    try testing.expect(@as(data.ValueType, result.array.array.items[2].*) == .boolean);
     try testing.expect(result.array.array.items[2].boolean.value);
     
     // Check nested object
@@ -190,8 +202,8 @@ test "direct object setting with complex data" {
     var data_obj = data.Data.init(allocator);
     var root = try data_obj.root(.object);
     
-    // Set the user directly
-    try root.put("user", user);
+    // Set the user directly via zmplValue
+    try root.put("user", try data.zmplValue(user, allocator));
     
     // Verify the user data was properly converted
     const user_obj = root.object.get("user").?;
@@ -229,7 +241,7 @@ test "zmplValue with nested arrays" {
         },
     };
     
-    const result = try data.Data.zmplValue(matrix, allocator);
+    const result = try data.zmplValue(matrix, allocator);
     
     // Check matrix structure
     try testing.expect(@as(data.ValueType, result.*) == .object);
@@ -295,7 +307,7 @@ test "zmplValue with structs containing arrays of structs" {
         },
     };
     
-    const result = try data.Data.zmplValue(blog, allocator);
+    const result = try data.zmplValue(blog, allocator);
     
     // Check blog structure
     try testing.expect(@as(data.ValueType, result.*) == .object);
