@@ -3,21 +3,21 @@ const jetzig = @import("../..");
 
 /// Converts a Zig model (struct or array) to a Data value that can be used in templates
 /// Uses the direct data creation approach which is proven to work reliably
-pub fn fromModel(value: anytype, allocator: std.mem.Allocator) !*jetzig.data.Value {
+pub fn fromModel(allocator: std.mem.Allocator, value: anytype) !*jetzig.data.Value {
     const T = @TypeOf(value);
     const data_obj = jetzig.data.Data.init(allocator);
     
     return switch (@typeInfo(T)) {
-        .struct => try structToValue(value, data_obj, allocator),
+        .struct => try structToValue(allocator, value, data_obj),
         .pointer => |ptr_info| switch (ptr_info.size) {
             .One => switch (@typeInfo(ptr_info.child)) {
-                .struct => try structToValue(value.*, data_obj, allocator),
+                .struct => try structToValue(allocator, value.*, data_obj),
                 else => @compileError("Unsupported pointer type: " ++ @typeName(T)),
             },
-            .Slice => try arrayToValue(value, data_obj, allocator),
+            .Slice => try arrayToValue(allocator, value, data_obj),
             else => @compileError("Unsupported pointer type: " ++ @typeName(T)),
         },
-        .array => try arrayToValue(&value, data_obj, allocator),
+        .array => try arrayToValue(allocator, &value, data_obj),
         .int, .float, .bool => blk: {
             const val = switch (@typeInfo(T)) {
                 .int => data_obj.integer(value),
@@ -32,7 +32,7 @@ pub fn fromModel(value: anytype, allocator: std.mem.Allocator) !*jetzig.data.Val
 }
 
 /// Helper function to convert a struct to a Value
-fn structToValue(value: anytype, data_obj: jetzig.data.Data, allocator: std.mem.Allocator) !*jetzig.data.Value {
+fn structToValue(allocator: std.mem.Allocator, value: anytype, data_obj: jetzig.data.Data) !*jetzig.data.Value {
     const T = @TypeOf(value);
     var root = try data_obj.root(.object);
     
@@ -42,13 +42,13 @@ fn structToValue(value: anytype, data_obj: jetzig.data.Data, allocator: std.mem.
         
         switch (@typeInfo(field_type)) {
             .struct => {
-                const nested = try structToValue(field_value, data_obj, allocator);
+                const nested = try structToValue(allocator, field_value, data_obj);
                 try root.put(field.name, nested);
             },
             .pointer => |ptr_info| switch (ptr_info.size) {
                 .One => switch (@typeInfo(ptr_info.child)) {
                     .struct => {
-                        const nested = try structToValue(field_value.*, data_obj, allocator);
+                        const nested = try structToValue(allocator, field_value.*, data_obj);
                         try root.put(field.name, nested);
                     },
                     else => @compileError("Unsupported pointer field type: " ++ @typeName(field_type)),
@@ -56,7 +56,7 @@ fn structToValue(value: anytype, data_obj: jetzig.data.Data, allocator: std.mem.
                 .Slice => switch (ptr_info.child) {
                     u8 => try root.put(field.name, data_obj.string(field_value)),
                     else => {
-                        const array_val = try arrayToValue(field_value, data_obj, allocator);
+                        const array_val = try arrayToValue(allocator, field_value, data_obj);
                         try root.put(field.name, array_val);
                     },
                 },
@@ -65,7 +65,7 @@ fn structToValue(value: anytype, data_obj: jetzig.data.Data, allocator: std.mem.
             .array => |array_info| switch (array_info.child) {
                 u8 => try root.put(field.name, data_obj.string(&field_value)),
                 else => {
-                    const array_val = try arrayToValue(&field_value, data_obj, allocator);
+                    const array_val = try arrayToValue(allocator, &field_value, data_obj);
                     try root.put(field.name, array_val);
                 },
             },
@@ -81,7 +81,7 @@ fn structToValue(value: anytype, data_obj: jetzig.data.Data, allocator: std.mem.
 }
 
 /// Helper function to convert an array to a Value
-fn arrayToValue(value: anytype, data_obj: jetzig.data.Data, allocator: std.mem.Allocator) !*jetzig.data.Value {
+fn arrayToValue(allocator: std.mem.Allocator, value: anytype, data_obj: jetzig.data.Data) !*jetzig.data.Value {
     const T = @TypeOf(value);
     const ptr_info = @typeInfo(T).pointer;
     
@@ -95,7 +95,7 @@ fn arrayToValue(value: anytype, data_obj: jetzig.data.Data, allocator: std.mem.A
             switch (@typeInfo(child_type)) {
                 .struct => {
                     for (slice) |item| {
-                        const item_val = try structToValue(item, data_obj, allocator);
+                        const item_val = try structToValue(allocator, item, data_obj);
                         try array.append(item_val);
                     }
                 },
@@ -137,7 +137,7 @@ fn arrayToValue(value: anytype, data_obj: jetzig.data.Data, allocator: std.mem.A
                     switch (@typeInfo(array_info.child)) {
                         .struct => {
                             for (array_ptr.*) |item| {
-                                const item_val = try structToValue(item, data_obj, allocator);
+                                const item_val = try structToValue(allocator, item, data_obj);
                                 try array.append(item_val);
                             }
                         },

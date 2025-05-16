@@ -21,7 +21,7 @@ test "simple fromModel with basic fields" {
     };
     
     // Create a data object from the user struct
-    const value = try jetzig.data.fromModel(user, allocator);
+    const value = try jetzig.data.fromModel(allocator, user);
     
     // Verify it's an object
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .object);

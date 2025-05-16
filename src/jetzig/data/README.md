@@ -16,6 +16,15 @@ The `fromModel` function supports:
 - Arrays and slices of structs
 - Optional fields (null is converted to a null value)
 - Enums (converted to strings using @tagName)
+- HashMaps (converted to objects)
+
+## Signature
+
+```zig
+pub fn fromModel(allocator: std.mem.Allocator, value: anytype) !*Value
+```
+
+Note that the function follows Zig conventions with the allocator parameter first.
 
 ## Usage
 
@@ -47,12 +56,40 @@ const user = User{
 };
 
 // In a request handler:
-var data_obj = jetzig.data.Data.init(allocator);
-var root = try data_obj.root(.object);
+var arena = std.heap.ArenaAllocator.init(request.allocator);
+defer arena.deinit();
+const allocator = arena.allocator();
 
 // Convert user to template data and add it to root
-const user_data = try jetzig.data.fromModel(user, allocator);
-try root.put("user", user_data);
+const user_data = try jetzig.data.fromModel(allocator, user);
+try response.render(.{
+    .template = "users/show.zmpl",
+    .context = .{
+        .user = user_data,
+    },
+});
+```
+
+### HashMap Example
+
+```zig
+// Create a string map
+var roles = std.StringHashMap(bool).init(allocator);
+defer roles.deinit();
+
+try roles.put("admin", true);
+try roles.put("editor", false);
+
+// Convert to template data
+const roles_data = try jetzig.data.fromModel(allocator, roles);
+
+// Use in template context
+try response.render(.{
+    .template = "users/roles.zmpl",
+    .context = .{
+        .roles = roles_data,
+    },
+});
 ```
 
 ## Implementation Notes
@@ -61,10 +98,11 @@ try root.put("user", user_data);
 - String values are properly duplicated to ensure they remain valid for the lifetime of the data structure.
 - Arrays and slices are converted to template array types.
 - Structs are converted to template object types with field names as keys.
+- HashMaps are detected by checking for `iterator()` and `get()` methods, making this compatible with various HashMap implementations.
 
 ## Tests
 
-The tests in `from_model_complete_test.zig` demonstrate the functionality of the `fromModel` function with various data structures and types.
+The tests in `from_model_complete_test.zig` and `hashmap_test.zig` demonstrate the functionality of the `fromModel` function with various data structures and types.
 
 ## Note on zmplValue
 

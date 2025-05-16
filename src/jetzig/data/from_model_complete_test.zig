@@ -10,14 +10,14 @@ test "fromModel with basic types" {
     
     // Test integer
     {
-        const value = try jetzig.data.fromModel(@as(u64, 42), allocator);
+        const value = try jetzig.data.fromModel(allocator, @as(u64, 42));
         try testing.expect(@as(jetzig.data.ValueType, value.*) == .integer);
         try testing.expectEqual(@as(i64, 42), value.integer.value);
     }
     
     // Test float
     {
-        const value = try jetzig.data.fromModel(@as(f64, 3.14), allocator);
+        const value = try jetzig.data.fromModel(allocator, @as(f64, 3.14));
         try testing.expect(@as(jetzig.data.ValueType, value.*) == .float);
         // Float equality can have precision issues, so we just check it's approximately 3.14
         try testing.expect(value.float.value >= 3.13 and value.float.value <= 3.15);
@@ -25,14 +25,14 @@ test "fromModel with basic types" {
     
     // Test boolean
     {
-        const value = try jetzig.data.fromModel(true, allocator);
+        const value = try jetzig.data.fromModel(allocator, true);
         try testing.expect(@as(jetzig.data.ValueType, value.*) == .boolean);
         try testing.expectEqual(true, value.boolean.value);
     }
     
     // Test string
     {
-        const value = try jetzig.data.fromModel("Test String", allocator);
+        const value = try jetzig.data.fromModel(allocator, "Test String");
         try testing.expect(@as(jetzig.data.ValueType, value.*) == .string);
         try testing.expectEqualStrings("Test String", value.string.value);
     }
@@ -59,7 +59,7 @@ test "fromModel with struct containing basic fields" {
     };
     
     // Create a data object from the user struct
-    const value = try jetzig.data.fromModel(user, allocator);
+    const value = try jetzig.data.fromModel(allocator, user);
     
     // Verify it's an object
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .object);
@@ -100,7 +100,7 @@ test "fromModel with nested structs" {
     };
     
     // Create a data object from the user struct
-    const value = try jetzig.data.fromModel(user, allocator);
+    const value = try jetzig.data.fromModel(allocator, user);
     
     // Verify it's an object
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .object);
@@ -126,7 +126,7 @@ test "fromModel with arrays and slices" {
     // Array of integers
     {
         const numbers = [_]i32{ 1, 2, 3, 4, 5 };
-        const value = try jetzig.data.fromModel(&numbers, allocator);
+        const value = try jetzig.data.fromModel(allocator, &numbers);
         
         try testing.expect(@as(jetzig.data.ValueType, value.*) == .array);
         try testing.expectEqual(@as(usize, 5), value.array.array.items.len);
@@ -141,7 +141,7 @@ test "fromModel with arrays and slices" {
     // Slice of strings
     {
         const tags = [_][]const u8{ "one", "two", "three" };
-        const value = try jetzig.data.fromModel(&tags, allocator);
+        const value = try jetzig.data.fromModel(allocator, &tags);
         
         try testing.expect(@as(jetzig.data.ValueType, value.*) == .array);
         try testing.expectEqual(@as(usize, 3), value.array.array.items.len);
@@ -169,7 +169,7 @@ test "fromModel with array of structs" {
         .{ .id = 3, .name = "Item 3" },
     };
     
-    const value = try jetzig.data.fromModel(&items, allocator);
+    const value = try jetzig.data.fromModel(allocator, &items);
     
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .array);
     try testing.expectEqual(@as(usize, 3), value.array.array.items.len);
@@ -249,7 +249,7 @@ test "fromModel with complex nested structure" {
     };
     
     // Convert to template data
-    const value = try jetzig.data.fromModel(user, allocator);
+    const value = try jetzig.data.fromModel(allocator, user);
     
     // Verify top level object
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .object);
@@ -314,7 +314,7 @@ test "fromModel with enum" {
         blue,
     };
     
-    const value = try jetzig.data.fromModel(Color.green, allocator);
+    const value = try jetzig.data.fromModel(allocator, Color.green);
     
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .string);
     try testing.expectEqualStrings("green", value.string.value);
@@ -340,7 +340,7 @@ test "fromModel with optional fields" {
             .email = "john@example.com",
         };
         
-        const value = try jetzig.data.fromModel(user, allocator);
+        const value = try jetzig.data.fromModel(allocator, user);
         
         try testing.expect(@as(jetzig.data.ValueType, value.*) == .object);
         try testing.expectEqual(@as(i64, 42), value.object.get("id").?.integer.value);
@@ -359,7 +359,7 @@ test "fromModel with optional fields" {
             .email = null,
         };
         
-        const value = try jetzig.data.fromModel(user, allocator);
+        const value = try jetzig.data.fromModel(allocator, user);
         
         try testing.expect(@as(jetzig.data.ValueType, value.*) == .object);
         try testing.expectEqual(@as(i64, 43), value.object.get("id").?.integer.value);

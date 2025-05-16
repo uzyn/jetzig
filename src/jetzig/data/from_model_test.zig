@@ -36,7 +36,7 @@ test "fromModel with nested struct" {
     };
     
     // Create a data object from the user struct
-    const value = try fromModel(user, allocator);
+    const value = try fromModel(allocator, user);
     
     // Verify it's an object
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .object);
@@ -95,7 +95,7 @@ test "fromModel with array of structs" {
     };
     
     // Create a data object from the array of posts
-    const value = try fromModel(&posts, allocator);
+    const value = try fromModel(allocator, &posts);
     
     // Verify it's an array
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .array);
@@ -126,7 +126,7 @@ test "fromModel with slice of integers" {
     const numbers_slice: []const u32 = &numbers;
     
     // Create a data object from the array
-    const value = try fromModel(numbers_slice, allocator);
+    const value = try fromModel(allocator, numbers_slice);
     
     // Verify it's an array
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .array);

@@ -14,14 +14,14 @@ pub const Data = zmpl.Data;
 /// - Arrays and slices of structs
 /// - Optional fields (null is converted to a null value)
 /// - Enums (converted to strings using @tagName)
-pub fn fromModel(value: anytype, allocator: std.mem.Allocator) !*Value {
+pub fn fromModel(allocator: std.mem.Allocator, value: anytype) !*Value {
     var data = Data.init(allocator);
     
-    return try fromModelInternal(value, &data, allocator);
+    return try fromModelInternal(allocator, value, &data);
 }
 
 /// Internal recursive implementation of fromModel
-fn fromModelInternal(value: anytype, data: *Data, allocator: std.mem.Allocator) !*Value {
+fn fromModelInternal(allocator: std.mem.Allocator, value: anytype, data: *Data) !*Value {
     // Handle different types
     switch (@typeInfo(@TypeOf(value))) {
         // Basic types
@@ -37,11 +37,11 @@ fn fromModelInternal(value: anytype, data: *Data, allocator: std.mem.Allocator) 
                     return data.string(value);
                 } else {
                     // Slice of other types (including structs)
-                    return try sliceToValue(value, data, allocator);
+                    return try sliceToValue(allocator, value, data);
                 }
             } else if (ptr_info.size == .one) {
                 // Handle pointer to struct
-                return try fromModelInternal(value.*, data, allocator);
+                return try fromModelInternal(allocator, value.*, data);
             } else {
                 @compileError("Unsupported pointer type: " ++ @typeName(@TypeOf(value)));
             }
@@ -54,17 +54,41 @@ fn fromModelInternal(value: anytype, data: *Data, allocator: std.mem.Allocator) 
                 return data.string(&value);
             } else {
                 // Handle arrays of other types
-                return try arrayToValue(&value, data, allocator);
+                return try arrayToValue(allocator, &value, data);
             }
         },
         
         // Structs
-        .@"struct" => return try structToValueRecursively(value, data, allocator),
+        .@"struct" => {
+            // Check if the value is a HashMap type with an iterator()
+            if (@hasDecl(@TypeOf(value), "iterator") and 
+                @hasDecl(@TypeOf(value), "get")) {
+                
+                // Convert to an object
+                var obj = try Data.createObject(allocator);
+                
+                var it = value.iterator();
+                while (it.next()) |entry| {
+                    const key = if (@TypeOf(entry.key_ptr.*) == []const u8) entry.key_ptr.* else blk: {
+                        var buf: [256]u8 = undefined;
+                        break :blk try std.fmt.bufPrint(&buf, "{any}", .{entry.key_ptr.*});
+                    };
+                    
+                    const val = try fromModelInternal(allocator, entry.value_ptr.*, data);
+                    try obj.put(key, val);
+                }
+                
+                return obj;
+            } else {
+                // Regular struct
+                return try structToValueRecursively(allocator, value, data);
+            }
+        },
         
         // Optionals
         .@"optional" => {
             if (value) |unwrapped| {
-                return try fromModelInternal(unwrapped, data, allocator);
+                return try fromModelInternal(allocator, unwrapped, data);
             } else {
                 return zmpl.Data._null(allocator);
             }
@@ -78,12 +102,12 @@ fn fromModelInternal(value: anytype, data: *Data, allocator: std.mem.Allocator) 
 }
 
 /// Converts a struct to a Value
-fn structToValueRecursively(value: anytype, data: *Data, allocator: std.mem.Allocator) !*Value {
+fn structToValueRecursively(allocator: std.mem.Allocator, value: anytype, data: *Data) !*Value {
     var obj = try Data.createObject(allocator);
     
     inline for (std.meta.fields(@TypeOf(value))) |field| {
         const field_value = @field(value, field.name);
-        const field_data = try fromModelInternal(field_value, data, allocator);
+        const field_data = try fromModelInternal(allocator, field_value, data);
         try obj.put(field.name, field_data);
     }
     
@@ -91,11 +115,11 @@ fn structToValueRecursively(value: anytype, data: *Data, allocator: std.mem.Allo
 }
 
 /// Converts a slice to a Value
-fn sliceToValue(slice: anytype, data: *Data, allocator: std.mem.Allocator) !*Value {
+fn sliceToValue(allocator: std.mem.Allocator, slice: anytype, data: *Data) !*Value {
     var array = try Data.createArray(allocator);
     
     for (slice) |item| {
-        const item_value = try fromModelInternal(item, data, allocator);
+        const item_value = try fromModelInternal(allocator, item, data);
         try array.append(item_value);
     }
     
@@ -103,11 +127,11 @@ fn sliceToValue(slice: anytype, data: *Data, allocator: std.mem.Allocator) !*Val
 }
 
 /// Converts an array to a Value
-fn arrayToValue(array_ptr: anytype, data: *Data, allocator: std.mem.Allocator) !*Value {
+fn arrayToValue(allocator: std.mem.Allocator, array_ptr: anytype, data: *Data) !*Value {
     var array = try Data.createArray(allocator);
     
     for (array_ptr.*) |item| {
-        const item_value = try fromModelInternal(item, data, allocator);
+        const item_value = try fromModelInternal(allocator, item, data);
         try array.append(item_value);
     }
     

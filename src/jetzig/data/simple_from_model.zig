@@ -2,7 +2,7 @@ const std = @import("std");
 const jetzig = @import("../..");
 
 /// Converts simple structs to template data
-pub fn fromModel(value: anytype, allocator: std.mem.Allocator) !*jetzig.data.Value {
+pub fn fromModel(allocator: std.mem.Allocator, value: anytype) !*jetzig.data.Value {
     const T = @TypeOf(value);
     var data = jetzig.data.Data.init(allocator);
     var root = try data.root(.object);

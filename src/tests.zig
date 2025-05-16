@@ -24,4 +24,5 @@ test {
     _ = @import("jetzig/data/minimal_test.zig");
     _ = @import("jetzig/data/simple_from_model_test.zig");
     _ = @import("jetzig/data/from_model_complete_test.zig");
+    _ = @import("jetzig/data/hashmap_test.zig");
 }
