@@ -127,9 +127,16 @@ pub fn modelToDataWithOptions(
     
     if (model_info != .@"struct") {
         // Not a struct, just return a string representation
-        var buf: [512]u8 = undefined;
-        const str = try std.fmt.bufPrint(&buf, "{any}", .{model});
-        try obj.put("value", data_obj.string(str));
+        // Use a dynamic buffer to prevent NoSpaceLeft errors with large data structures
+        var list = std.ArrayList(u8).init(allocator);
+        defer list.deinit(); // Safe because data_obj.string() makes a copy
+        
+        // Format to the list - this can handle arbitrarily large data
+        try std.fmt.format(list.writer(), "{any}", .{model});
+        
+        // Create a string value from the list's contents
+        // data_obj.string() makes its own copy of the string data
+        try obj.put("value", data_obj.string(list.items));
         return obj;
     }
     
@@ -201,10 +208,16 @@ pub fn modelToDataWithOptions(
                                               ItemType == comptime_float) {
                                         try array.append(data_obj.float(@as(f64, @floatCast(item))));
                                     } else {
-                                        // For other types, convert to string
-                                        var buf: [512]u8 = undefined;
-                                        const str = try std.fmt.bufPrint(&buf, "{any}", .{item});
-                                        try array.append(data_obj.string(str));
+                                        // For other types, convert to string using dynamic buffer
+                                        // Use dynamic buffer to avoid NoSpaceLeft errors with large data
+                                        var list = std.ArrayList(u8).init(allocator);
+                                        defer list.deinit(); // Safe because data_obj.string() makes a copy
+                                        
+                                        // Format to the list
+                                        try std.fmt.format(list.writer(), "{any}", .{item});
+                                        
+                                        // Append the string value
+                                        try array.append(data_obj.string(list.items));
                                     }
                                 }
                             }
@@ -213,10 +226,16 @@ pub fn modelToDataWithOptions(
                             continue;
                         }
                         
-                        // Default - convert to string
-                        var buf: [512]u8 = undefined;
-                        const str = try std.fmt.bufPrint(&buf, "{any}", .{field_value});
-                        try obj.put(field_name, data_obj.string(str));
+                        // Default - convert to string using dynamic buffer
+                        // Use dynamic buffer to avoid NoSpaceLeft errors with large data
+                        var list = std.ArrayList(u8).init(allocator);
+                        defer list.deinit(); // Safe because data_obj.string() makes a copy
+                        
+                        // Format to the list
+                        try std.fmt.format(list.writer(), "{any}", .{field_value});
+                        
+                        // Add the string value
+                        try obj.put(field_name, data_obj.string(list.items));
                     }
                 } else {
                     // Handle other types normally
@@ -244,9 +263,15 @@ pub fn modelToDataWithOptions(
                                     const nested = try modelToDataWithOptions(allocator, val, options);
                                     try obj.put(field_name, nested);
                                 } else {
-                                    var buf: [512]u8 = undefined;
-                                    const str = try std.fmt.bufPrint(&buf, "{any}", .{val});
-                                    try obj.put(field_name, data_obj.string(str));
+                                    // Use dynamic buffer to avoid NoSpaceLeft errors with large data
+                                    var list = std.ArrayList(u8).init(allocator);
+                                    defer list.deinit(); // Safe because data_obj.string() makes a copy
+                                    
+                                    // Format to the list
+                                    try std.fmt.format(list.writer(), "{any}", .{val});
+                                    
+                                    // Add the string value
+                                    try obj.put(field_name, data_obj.string(list.items));
                                 }
                             } else {
                                 if (handleNullValue(allocator, field_type_info, options)) |value| {
@@ -259,9 +284,15 @@ pub fn modelToDataWithOptions(
                             try obj.put(field_name, nested);
                         },
                         else => {
-                            var buf: [512]u8 = undefined;
-                            const str = try std.fmt.bufPrint(&buf, "{any}", .{field_value});
-                            try obj.put(field_name, data_obj.string(str));
+                            // Use dynamic buffer to avoid NoSpaceLeft errors with large data
+                            var list = std.ArrayList(u8).init(allocator);
+                            defer list.deinit(); // Safe because data_obj.string() makes a copy
+                            
+                            // Format to the list
+                            try std.fmt.format(list.writer(), "{any}", .{field_value});
+                            
+                            // Add the string value
+                            try obj.put(field_name, data_obj.string(list.items));
                         },
                     }
                 }
