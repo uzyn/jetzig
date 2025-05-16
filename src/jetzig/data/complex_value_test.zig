@@ -3,6 +3,9 @@ const testing = std.testing;
 const jetzig = @import("../../jetzig.zig");
 const data = jetzig.data;
 
+// DEPRECATED: These tests use the old zmplValue() function which has string corruption issues.
+// Use the new fromModel() function instead, which is properly tested in from_model_complete_test.zig.
+
 // Test structures for complex nested data
 const Favorite = struct {
     id: u64,

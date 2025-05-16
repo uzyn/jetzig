@@ -2,6 +2,8 @@ const std = @import("std");
 const testing = std.testing;
 const jetzig = @import("../../jetzig.zig");
 
+// DEPRECATED: This test uses the old zmplValue() function which has string corruption issues.
+// Use the new fromModel() function instead, which is properly tested in from_model_complete_test.zig.
 test "zmplValue with nested struct" {
     // Set up an arena allocator for the test
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
