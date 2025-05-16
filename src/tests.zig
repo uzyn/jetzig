@@ -14,6 +14,5 @@ test {
     _ = @import("jetzig/mail/Mail.zig");
     _ = @import("jetzig/loggers/LogQueue.zig");
     _ = @import("jetzig/data/simple_test.zig");
-    // Disable comprehensive tests for now until we fix null handling
-    // _ = @import("jetzig/data/model_to_data_test.zig");
+    _ = @import("jetzig/data/model_to_data_test.zig");
 }
