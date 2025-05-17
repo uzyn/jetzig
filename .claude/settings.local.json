@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(zig build test)",
+      "Bash(zig build:*)",
+      "Bash(zig test:*)",
+      "Bash(./zig-out/bin/jetzig:*)",
+      "Bash(../cli/zig-out/bin/jetzig database seed:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(cat:*)",
+      "Bash(git grep:*)",
+      "Bash(git checkout:*)",
+      "Bash(ls:*)",
+      "Bash(sed:*)",
+      "Bash(zig run:*)",
+      "Bash(touch:*)"
+    ],
+    "deny": []
+  }
+}

@@ -1,12 +1,17 @@
 const std = @import("std");
 const testing = std.testing;
 const jetzig = @import("../../jetzig.zig");
+const test_helpers = @import("test_helpers.zig");
 
 test "simple fromModel with basic fields" {
     // Set up an arena allocator for the test
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
+    
+    // Create a mock request
+    var request = try test_helpers.createMockRequest(allocator);
+    defer allocator.destroy(request);
     
     const User = struct {
         id: u64,
@@ -21,7 +26,7 @@ test "simple fromModel with basic fields" {
     };
     
     // Create a data object from the user struct
-    const value = try jetzig.data.fromModel(allocator, user);
+    const value = try jetzig.data.fromModel(request, user);
     
     // Verify it's an object
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .object);

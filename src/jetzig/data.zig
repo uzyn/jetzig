@@ -2,6 +2,7 @@ const std = @import("std");
 
 const zmpl = @import("zmpl").zmpl;
 const jetcommon = @import("jetcommon");
+const jetzig = @import("../jetzig.zig");
 
 pub const Writer = zmpl.Data.Writer;
 pub const Data = zmpl.Data;
@@ -14,10 +15,15 @@ pub const Data = zmpl.Data;
 /// - Arrays and slices of structs
 /// - Optional fields (null is converted to a null value)
 /// - Enums (converted to strings using @tagName)
-pub fn fromModel(allocator: std.mem.Allocator, value: anytype) !*Value {
-    var data = Data.init(allocator);
+///
+/// Takes a request as parameter to use its arena allocator, ensuring proper memory management
+/// and cleanup when the request completes.
+pub fn fromModel(request: *jetzig.http.Request, value: anytype) !*Value {
+    const allocator = request.allocator;
+    var data_obj = try allocator.create(Data);
+    data_obj.* = Data.init(allocator);
     
-    return try fromModelInternal(allocator, value, &data);
+    return try fromModelInternal(allocator, value, data_obj);
 }
 
 /// Internal recursive implementation of fromModel

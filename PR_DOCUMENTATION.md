@@ -4,13 +4,15 @@ This PR enhances the `fromModel` function to provide a more powerful way of conv
 
 ## API Overview
 
-The function follows idiomatic Zig conventions with the allocator parameter first:
+The function takes a request parameter to use its arena allocator:
 
 ```zig
-pub fn fromModel(allocator: std.mem.Allocator, value: anytype) !*Value
+pub fn fromModel(request: *jetzig.http.Request, value: anytype) !*Value
 ```
 
 The function replaces the need for manually creating data structures with multiple `put` calls and handles complex nested structures automatically.
+
+By using the request's arena allocator, the function ensures proper memory management and cleanup when the request completes.
 
 ## Basic Usage
 
@@ -31,8 +33,8 @@ const user = User{
     .active = true,
 };
 
-// Convert to template-compatible data object
-const user_data = try jetzig.data.fromModel(allocator, user);
+// Convert to template-compatible data object (preferred approach in request handlers)
+const user_data = try jetzig.data.fromModelForRequest(request, user);
 
 // Use in your template context
 try response.render(.{
@@ -52,7 +54,7 @@ var users = [_]User{
 };
 
 // Convert array to template-compatible data array
-const users_data = try jetzig.data.fromModel(allocator, &users);
+const users_data = try jetzig.data.fromModelForRequest(request, &users);
 
 // Use in your template context
 try response.render(.{
@@ -74,7 +76,7 @@ try roles.put("admin", true);
 try roles.put("editor", false);
 
 // Convert to template data
-const roles_data = try jetzig.data.fromModel(allocator, roles);
+const roles_data = try jetzig.data.fromModelForRequest(request, roles);
 
 // Use in template context
 try response.render(.{
@@ -116,7 +118,7 @@ const User = struct {
         .email = "john@example.com",
     };
     
-    const value = try jetzig.data.fromModel(allocator, user);
+    const value = try jetzig.data.fromModelForRequest(request, user);
     // The email field will be a string value
 }
 
@@ -128,7 +130,7 @@ const User = struct {
         .email = null,
     };
     
-    const value = try jetzig.data.fromModel(allocator, user);
+    const value = try jetzig.data.fromModelForRequest(request, user);
     // The email field will be a null value
 }
 ```
@@ -145,7 +147,7 @@ const Color = enum {
 };
 
 const color = Color.green;
-const value = try jetzig.data.fromModel(allocator, color);
+const value = try jetzig.data.fromModelForRequest(request, color);
 // value will be the string "green"
 ```
 
@@ -216,7 +218,7 @@ const user = User{
 };
 
 // Convert to template data with a single call
-const user_data = try jetzig.data.fromModel(allocator, user);
+const user_data = try jetzig.data.fromModelForRequest(request, user);
 ```
 
 The resulting data structure maintains all nested relationships, making it ideal for complex templates.
@@ -226,10 +228,23 @@ The resulting data structure maintains all nested relationships, making it ideal
 This implementation:
 
 1. Follows idiomatic Zig conventions with allocator parameter first
-2. Uses a recursive approach to handle complex nested structures
-3. Properly handles all Zig data types including optionals, enums, and HashMaps
-4. Is thoroughly tested with comprehensive test cases
+2. Provides a request-specific overload (`fromModelForRequest`) for better memory management 
+3. Uses a recursive approach to handle complex nested structures
+4. Properly handles all Zig data types including optionals, enums, and HashMaps
+5. Manages memory properly by tracking all allocations through a created Data object
+6. Is thoroughly tested with comprehensive test cases
 
 This PR replaces the problematic `zmplValue` function with a more robust and reliable `fromModel` function that correctly handles all data types without string corruption issues.
 
 The implementation is designed to be intuitive and easy to use, while still handling complex data structures efficiently.
+
+### Memory Management
+
+The implementation properly handles memory by:
+
+1. Taking a request parameter to use its arena allocator
+2. Creating a Data object on the heap using the request's allocator
+3. Ensuring all allocations are tied to the request's arena
+4. Letting the arena handle cleanup when the request completes
+
+This approach eliminates memory leaks and simplifies memory management for users.

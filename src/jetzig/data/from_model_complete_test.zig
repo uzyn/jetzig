@@ -1,6 +1,7 @@
 const std = @import("std");
 const testing = std.testing;
 const jetzig = @import("../../jetzig.zig");
+const test_helpers = @import("test_helpers.zig");
 
 test "fromModel with basic types" {
     // Set up an arena allocator for the test
@@ -8,16 +9,19 @@ test "fromModel with basic types" {
     defer arena.deinit();
     const allocator = arena.allocator();
     
+    var request = try test_helpers.createMockRequest(allocator);
+    defer allocator.destroy(request);
+    
     // Test integer
     {
-        const value = try jetzig.data.fromModel(allocator, @as(u64, 42));
+        const value = try jetzig.data.fromModel(request, @as(u64, 42));
         try testing.expect(@as(jetzig.data.ValueType, value.*) == .integer);
         try testing.expectEqual(@as(i64, 42), value.integer.value);
     }
     
     // Test float
     {
-        const value = try jetzig.data.fromModel(allocator, @as(f64, 3.14));
+        const value = try jetzig.data.fromModel(request, @as(f64, 3.14));
         try testing.expect(@as(jetzig.data.ValueType, value.*) == .float);
         // Float equality can have precision issues, so we just check it's approximately 3.14
         try testing.expect(value.float.value >= 3.13 and value.float.value <= 3.15);
@@ -25,14 +29,14 @@ test "fromModel with basic types" {
     
     // Test boolean
     {
-        const value = try jetzig.data.fromModel(allocator, true);
+        const value = try jetzig.data.fromModel(request, true);
         try testing.expect(@as(jetzig.data.ValueType, value.*) == .boolean);
         try testing.expectEqual(true, value.boolean.value);
     }
     
     // Test string
     {
-        const value = try jetzig.data.fromModel(allocator, "Test String");
+        const value = try jetzig.data.fromModel(request, "Test String");
         try testing.expect(@as(jetzig.data.ValueType, value.*) == .string);
         try testing.expectEqualStrings("Test String", value.string.value);
     }
@@ -43,6 +47,9 @@ test "fromModel with struct containing basic fields" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
+    
+    var request = try test_helpers.createMockRequest(allocator);
+    defer allocator.destroy(request);
     
     const User = struct {
         id: u64,
@@ -59,7 +66,7 @@ test "fromModel with struct containing basic fields" {
     };
     
     // Create a data object from the user struct
-    const value = try jetzig.data.fromModel(allocator, user);
+    const value = try jetzig.data.fromModel(request, user);
     
     // Verify it's an object
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .object);
@@ -76,6 +83,9 @@ test "fromModel with nested structs" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
+    
+    var request = try test_helpers.createMockRequest(allocator);
+    defer allocator.destroy(request);
     
     const Address = struct {
         street: []const u8,
@@ -100,7 +110,7 @@ test "fromModel with nested structs" {
     };
     
     // Create a data object from the user struct
-    const value = try jetzig.data.fromModel(allocator, user);
+    const value = try jetzig.data.fromModel(request, user);
     
     // Verify it's an object
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .object);
@@ -123,10 +133,13 @@ test "fromModel with arrays and slices" {
     defer arena.deinit();
     const allocator = arena.allocator();
     
+    var request = try test_helpers.createMockRequest(allocator);
+    defer allocator.destroy(request);
+    
     // Array of integers
     {
         const numbers = [_]i32{ 1, 2, 3, 4, 5 };
-        const value = try jetzig.data.fromModel(allocator, &numbers);
+        const value = try jetzig.data.fromModel(request, &numbers);
         
         try testing.expect(@as(jetzig.data.ValueType, value.*) == .array);
         try testing.expectEqual(@as(usize, 5), value.array.array.items.len);
@@ -141,7 +154,7 @@ test "fromModel with arrays and slices" {
     // Slice of strings
     {
         const tags = [_][]const u8{ "one", "two", "three" };
-        const value = try jetzig.data.fromModel(allocator, &tags);
+        const value = try jetzig.data.fromModel(request, &tags);
         
         try testing.expect(@as(jetzig.data.ValueType, value.*) == .array);
         try testing.expectEqual(@as(usize, 3), value.array.array.items.len);
@@ -158,6 +171,9 @@ test "fromModel with array of structs" {
     defer arena.deinit();
     const allocator = arena.allocator();
     
+    var request = try test_helpers.createMockRequest(allocator);
+    defer allocator.destroy(request);
+    
     const Item = struct {
         id: u32,
         name: []const u8,
@@ -169,7 +185,7 @@ test "fromModel with array of structs" {
         .{ .id = 3, .name = "Item 3" },
     };
     
-    const value = try jetzig.data.fromModel(allocator, &items);
+    const value = try jetzig.data.fromModel(request, &items);
     
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .array);
     try testing.expectEqual(@as(usize, 3), value.array.array.items.len);
@@ -192,6 +208,9 @@ test "fromModel with complex nested structure" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
+    
+    var request = try test_helpers.createMockRequest(allocator);
+    defer allocator.destroy(request);
     
     const Address = struct {
         street: []const u8,
@@ -249,7 +268,7 @@ test "fromModel with complex nested structure" {
     };
     
     // Convert to template data
-    const value = try jetzig.data.fromModel(allocator, user);
+    const value = try jetzig.data.fromModel(request, user);
     
     // Verify top level object
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .object);
@@ -308,13 +327,16 @@ test "fromModel with enum" {
     defer arena.deinit();
     const allocator = arena.allocator();
     
+    var request = try test_helpers.createMockRequest(allocator);
+    defer allocator.destroy(request);
+    
     const Color = enum {
         red,
         green,
         blue,
     };
     
-    const value = try jetzig.data.fromModel(allocator, Color.green);
+    const value = try jetzig.data.fromModel(request, Color.green);
     
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .string);
     try testing.expectEqualStrings("green", value.string.value);
@@ -325,6 +347,9 @@ test "fromModel with optional fields" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
+    
+    var request = try test_helpers.createMockRequest(allocator);
+    defer allocator.destroy(request);
     
     const User = struct {
         id: u64,
@@ -340,7 +365,7 @@ test "fromModel with optional fields" {
             .email = "john@example.com",
         };
         
-        const value = try jetzig.data.fromModel(allocator, user);
+        const value = try jetzig.data.fromModel(request, user);
         
         try testing.expect(@as(jetzig.data.ValueType, value.*) == .object);
         try testing.expectEqual(@as(i64, 42), value.object.get("id").?.integer.value);
@@ -359,7 +384,7 @@ test "fromModel with optional fields" {
             .email = null,
         };
         
-        const value = try jetzig.data.fromModel(allocator, user);
+        const value = try jetzig.data.fromModel(request, user);
         
         try testing.expect(@as(jetzig.data.ValueType, value.*) == .object);
         try testing.expectEqual(@as(i64, 43), value.object.get("id").?.integer.value);

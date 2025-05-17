@@ -1,13 +1,16 @@
 const std = @import("std");
 const testing = std.testing;
 const jetzig = @import("../../jetzig.zig");
-const fromModel = @import("fromModel.zig").fromModel;
+const test_helpers = @import("test_helpers.zig");
 
 test "fromModel with nested struct" {
     // Set up an arena allocator for the test
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
+    
+    var request = try test_helpers.createMockRequest(allocator);
+    defer allocator.destroy(request);
     
     const User = struct {
         id: u64,
@@ -36,7 +39,7 @@ test "fromModel with nested struct" {
     };
     
     // Create a data object from the user struct
-    const value = try fromModel(allocator, user);
+    const value = try jetzig.data.fromModel(request, user);
     
     // Verify it's an object
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .object);
@@ -75,6 +78,9 @@ test "fromModel with array of structs" {
     defer arena.deinit();
     const allocator = arena.allocator();
     
+    var request = try test_helpers.createMockRequest(allocator);
+    defer allocator.destroy(request);
+    
     const Post = struct {
         id: u64,
         title: []const u8,
@@ -95,7 +101,7 @@ test "fromModel with array of structs" {
     };
     
     // Create a data object from the array of posts
-    const value = try fromModel(allocator, &posts);
+    const value = try jetzig.data.fromModel(request, &posts);
     
     // Verify it's an array
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .array);
@@ -122,11 +128,14 @@ test "fromModel with slice of integers" {
     defer arena.deinit();
     const allocator = arena.allocator();
     
+    var request = try test_helpers.createMockRequest(allocator);
+    defer allocator.destroy(request);
+    
     const numbers = [_]u32{ 1, 2, 3, 4, 5 };
     const numbers_slice: []const u32 = &numbers;
     
     // Create a data object from the array
-    const value = try fromModel(allocator, numbers_slice);
+    const value = try jetzig.data.fromModel(request, numbers_slice);
     
     // Verify it's an array
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .array);

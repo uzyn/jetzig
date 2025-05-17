@@ -1,12 +1,16 @@
 const std = @import("std");
 const testing = std.testing;
 const jetzig = @import("../../jetzig.zig");
+const test_helpers = @import("test_helpers.zig");
 
 test "fromModel with HashMap" {
     // Set up an arena allocator for the test
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
+    
+    var request = try test_helpers.createMockRequest(allocator);
+    defer allocator.destroy(request);
     
     // Create a string HashMap
     var string_map = std.StringHashMap([]const u8).init(allocator);
@@ -17,7 +21,7 @@ test "fromModel with HashMap" {
     try string_map.put("role", "admin");
     
     // Convert to template data
-    const value = try jetzig.data.fromModel(allocator, string_map);
+    const value = try jetzig.data.fromModel(request, string_map);
     
     // Verify it's an object
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .object);
@@ -34,6 +38,9 @@ test "fromModel with HashMap of complex values" {
     defer arena.deinit();
     const allocator = arena.allocator();
     
+    var request = try test_helpers.createMockRequest(allocator);
+    defer allocator.destroy(request);
+    
     const User = struct {
         id: u32,
         name: []const u8,
@@ -48,7 +55,7 @@ test "fromModel with HashMap of complex values" {
     try user_map.put("user2", .{ .id = 2, .name = "Jane", .active = false });
     
     // Convert to template data
-    const value = try jetzig.data.fromModel(allocator, user_map);
+    const value = try jetzig.data.fromModel(request, user_map);
     
     // Verify it's an object
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .object);
@@ -74,6 +81,9 @@ test "fromModel with nested HashMap" {
     defer arena.deinit();
     const allocator = arena.allocator();
     
+    var request = try test_helpers.createMockRequest(allocator);
+    defer allocator.destroy(request);
+    
     // Create nested HashMaps
     var roles_map = std.StringHashMap(bool).init(allocator);
     defer roles_map.deinit();
@@ -86,7 +96,7 @@ test "fromModel with nested HashMap" {
     try user_data.put("roles", roles_map);
     
     // Convert to template data
-    const value = try jetzig.data.fromModel(allocator, user_data);
+    const value = try jetzig.data.fromModel(request, user_data);
     
     // Verify it's an object
     try testing.expect(@as(jetzig.data.ValueType, value.*) == .object);
