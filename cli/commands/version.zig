@@ -1,6 +1,6 @@
 const std = @import("std");
 const args = @import("args");
-const git_info = @import("git_info");
+const version = @import("version");
 
 /// Command line options for the `version` command.
 pub const Options = struct {
@@ -22,5 +22,5 @@ pub fn run(
         try args.printHelp(Options, "jetzig version", writer);
         return;
     }
-    std.debug.print("{s}+{s}\n", .{ git_info.version, git_info.commit_hash });
+    std.debug.print("{s}+{s}\n", .{ version.version, version.commit_hash });
 }

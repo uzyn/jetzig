@@ -56,9 +56,9 @@ pub fn build(b: *std.Build) !void {
     try content.appendSlice(b.allocator, hash);
     try content.appendSlice(b.allocator, "\";\n");
     const write_files = b.addWriteFiles();
-    const git_info_src = write_files.add("git_info.zig", content.items);
-    const git_info_module = b.createModule(.{ .root_source_file = git_info_src });
-    exe.root_module.addImport("git_info", git_info_module);
+    const version_src = write_files.add("version.zig", content.items);
+    const version_module = b.createModule(.{ .root_source_file = version_src });
+    exe.root_module.addImport("version", version_module);
 
     b.installArtifact(exe);
 
