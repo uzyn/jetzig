@@ -3,7 +3,7 @@ const std = @import("std");
 const compile = @import("compile.zig");
 
 fn getGitHash(allocator: std.mem.Allocator) ![]const u8 {
-    var child = std.process.Child.init(&[_][]const u8{"git", "rev-parse", "--short=10", "HEAD"}, allocator);
+    var child = std.process.Child.init(&[_][]const u8{ "git", "rev-parse", "--short=10", "HEAD" }, allocator);
     child.stdin_behavior = .Ignore;
     child.stdout_behavior = .Pipe;
     child.stderr_behavior = .Inherit;

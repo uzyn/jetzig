@@ -6,7 +6,7 @@ const git_info = @import("git_info");
 pub const Options = struct {
     pub const meta = .{
         .usage_summary = "",
-        .full_text = "Show the Jetzig CLI version and git commit hash.",
+        .full_text = "Prints Jetzig version.",
     };
 };
 
@@ -22,5 +22,5 @@ pub fn run(
         try args.printHelp(Options, "jetzig version", writer);
         return;
     }
-    std.debug.print("{s}+{s}\n", .{git_info.version, git_info.commit_hash});
+    std.debug.print("{s}+{s}\n", .{ git_info.version, git_info.commit_hash });
 }
