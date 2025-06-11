@@ -6,14 +6,14 @@ const version = @import("version");
 pub const Options = struct {
     pub const meta = .{
         .usage_summary = "",
-        .full_text = "Prints Jetzig version.",
+        .full_text = "Print Jetzig version.",
     };
 };
 
 /// Run the `jetzig version` command.
 pub fn run(
-    allocator: std.mem.Allocator,
-    options: Options,
+    _: std.mem.Allocator,
+    _: Options,
     writer: anytype,
     T: type,
     main_options: T,

@@ -3,20 +3,18 @@ const std = @import("std");
 const compile = @import("compile.zig");
 
 fn getGitHash(allocator: std.mem.Allocator) ![]const u8 {
-    var child = std.process.Child.init(&[_][]const u8{ "git", "rev-parse", "--short=10", "HEAD" }, allocator);
-    child.stdin_behavior = .Ignore;
-    child.stdout_behavior = .Pipe;
-    child.stderr_behavior = .Inherit;
-    try child.spawn();
-    var buf = std.ArrayList(u8).init(allocator);
-    const poller = std.io.poll(allocator, enum { stdout }, .{ .stdout = child.stdout.? });
-    defer poller.deinit();
-    while (try poller.poll()) {}
-    var fifo = poller.fifo(.stdout);
-    if (fifo.head != 0) fifo.realign();
-    try buf.appendSlice(allocator, fifo.buf[0..fifo.count]);
-    _ = try child.wait();
-    return buf.toOwnedSlice(allocator);
+    const args = &[_][]const u8{ "git", "rev-parse", "--short=10", "HEAD" };
+    const proc = try std.process.Child.run(.{
+        .allocator = allocator,
+        .argv = args,
+    });
+    defer allocator.free(proc.stderr);
+
+    const trimmed = std.mem.trim(u8, proc.stdout, &std.ascii.whitespace);
+    const hash = try allocator.alloc(u8, trimmed.len);
+    std.mem.copyForwards(u8, hash, trimmed);
+    allocator.free(proc.stdout);
+    return hash;
 }
 
 pub fn build(b: *std.Build) !void {
@@ -41,20 +39,19 @@ pub fn build(b: *std.Build) !void {
     exe.root_module.addImport("args", zig_args_dep.module("args"));
     exe.root_module.addImport("init_data", try compile.initDataModule(b));
 
-    // Embed version and commit hash into the CLI
     const version_config = @import("build.zig.zon");
     const version_str = version_config.version;
-    var raw_hash = try getGitHash(b.allocator);
+    const raw_hash = try getGitHash(b.allocator);
     defer b.allocator.free(raw_hash);
     const hash = std.mem.trim(u8, raw_hash, &std.ascii.whitespace);
     var content = std.ArrayList(u8).init(b.allocator);
     defer content.deinit();
-    try content.appendSlice(b.allocator, "pub const version = \"");
-    try content.appendSlice(b.allocator, version_str);
-    try content.appendSlice(b.allocator, "\";\n");
-    try content.appendSlice(b.allocator, "pub const commit_hash = \"");
-    try content.appendSlice(b.allocator, hash);
-    try content.appendSlice(b.allocator, "\";\n");
+    try content.appendSlice("pub const version = \"");
+    try content.appendSlice(version_str);
+    try content.appendSlice("\";\n");
+    try content.appendSlice("pub const commit_hash = \"");
+    try content.appendSlice(hash);
+    try content.appendSlice("\";\n");
     const write_files = b.addWriteFiles();
     const version_src = write_files.add("version.zig", content.items);
     const version_module = b.createModule(.{ .root_source_file = version_src });

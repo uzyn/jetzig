@@ -93,7 +93,7 @@ pub fn main() !void {
             \\  database     Manage the application's database.
             \\  auth         Utilities for Jetzig authentication.
             \\  test         Run app tests.
-            \\  version      Show the Jetzig CLI version and git commit hash.
+            \\  version      Print Jetzig version.
             \\
             \\ Pass --help to any command for more information, e.g. `jetzig init --help`
             \\
